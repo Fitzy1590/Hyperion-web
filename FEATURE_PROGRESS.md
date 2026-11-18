@@ -35,8 +35,8 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 
 ### Phase 2 – Guardrails & environment
 - [x] `CLAUDE.md` (57 lines)
-- [ ] TokenEconomizer plugin: BLOCKED – `tokeneconomizer@tokeneconomizer` not found (only `anthropic-plugin-directory` is configured). Needs the marketplace source from the user.
-- [ ] `/tokeneconomizer:config set microskills=on`: blocked by the item above
+- [x] TokenEconomizer plugin installed (marketplace cloned from github.com/microsoft/TokenEconomizer; v0.1.0, user scope). Note: marketplace source dir is a session scratchpad path; re-add from a permanent clone on other machines.
+- [x] microskills enabled via `te config set microskills=on` (stored as `envfacts+distiller` in ~/.tokeneconomizer, per repo)
 - [x] Model default `sonnet` in `.claude/settings.json` (effort `medium` must be set by the user with `/effort medium`)
 - [x] `.claude/rules/ui.md`
 - [x] `.claude/settings.json` build hook (`.claude/hooks/dotnet-build.sh`; no-op without `dotnet`/`.sln`)
