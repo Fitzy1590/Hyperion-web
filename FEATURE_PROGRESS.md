@@ -29,7 +29,7 @@ Conclusion: greenfield repository. Nothing is implemented.
 - [x] **Option A [RECOMMENDED]**: C# .NET 9 + WebView2 + Self-Diagnosing Bootstrap + Automatic Tab Suspender + Fast Download Manager + 1-Click Torrent Streamer
 - [ ] **Option B**: Basic Browser View Only
 
-Phase 2 is unblocked. Awaiting Phase 2 instructions.
+Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist).
 
 ## Phase Checklist (survives `/clear`; update after each step)
 
