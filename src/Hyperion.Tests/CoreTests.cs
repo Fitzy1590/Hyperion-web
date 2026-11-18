@@ -291,3 +291,40 @@ public class TorrentHeuristicsTests
     public void ReadableBytesHoldsBackMarginUntilComplete(long done, long length, long margin, long expected) =>
         Assert.Equal(expected, TorrentHeuristics.ReadableBytes(done, length, margin));
 }
+
+public class ExternalLaunchTests
+{
+    [Theory]
+    [InlineData("magnet:?xt=urn:btih:abc123&dn=x")]
+    [InlineData("\"magnet:?xt=urn:btih:abc123\"")]
+    [InlineData("MAGNET:?XT=urn:btih:abc123")]
+    public void AcceptsMagnetLinks(string arg) => Assert.NotNull(ExternalLaunch.Accept(arg));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("https://example.com/a.torrent")]
+    [InlineData("magnet:?dn=no-hash")]
+    [InlineData("magnet:xt=urn:btih:abc")]
+    [InlineData("relative\\file.torrent")]
+    [InlineData("C:\\definitely\\missing\\file.torrent")]
+    [InlineData("C:\\Windows\\notepad.exe")]
+    public void RejectsEverythingElse(string? arg) => Assert.Null(ExternalLaunch.Accept(arg));
+
+    [Fact]
+    public void RejectsOverlongInput() =>
+        Assert.Null(ExternalLaunch.Accept("magnet:?xt=urn:btih:" + new string('a', 9000)));
+
+    [Fact]
+    public void AcceptsExistingTorrentFileByFullPath()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".TORRENT");
+        File.WriteAllText(path, "x");
+        try
+        {
+            Assert.Equal(path, ExternalLaunch.Accept($"\"{path}\""));
+            Assert.Equal(path, ExternalLaunch.AcceptFirst(new[] { "--flag", path }));
+        }
+        finally { File.Delete(path); }
+    }
+}

@@ -29,6 +29,7 @@ public partial class MainWindow : Window
         {
             await App.Services.GetRequiredService<TabHost>().InitializeAsync(Surface);
             await _vm.StartAsync();
+            ((App)Application.Current).SetExternalHandler(_vm.OpenExternalAsync); // also opens a link we were launched with
         };
     }
 

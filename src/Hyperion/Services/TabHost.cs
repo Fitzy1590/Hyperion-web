@@ -66,7 +66,7 @@ public sealed class TabHost(
             if (e.Uri.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
             {
                 e.Cancel = true;
-                _ = StreamMagnetAsync(tab, core, e.Uri);
+                _ = StreamTorrentAsync(tab, core, e.Uri);
             }
             else if (_streamTabId == tab.Id && !IsStreamPage(e.Uri))
             {
@@ -168,8 +168,12 @@ public sealed class TabHost(
         }
     }
 
-    /// <summary>Each magnet gets a fresh streamer; the previous stream is disposed and a still-starting older magnet is cancelled.</summary>
-    async Task StreamMagnetAsync(BrowserTabViewModel tab, CoreWebView2 core, string magnet)
+    /// <summary>Streams a magnet link or .torrent path into an already-open tab (used for external activations).</summary>
+    public Task StreamAsync(BrowserTabViewModel tab, string source) =>
+        _tabs.TryGetValue(tab.Id, out var e) ? StreamTorrentAsync(tab, e.View.CoreWebView2, source) : Task.CompletedTask;
+
+    /// <summary>Each torrent gets a fresh streamer; the previous stream is disposed and a still-starting older one is cancelled.</summary>
+    async Task StreamTorrentAsync(BrowserTabViewModel tab, CoreWebView2 core, string magnet)
     {
         if (torrentFactory is null)
         {

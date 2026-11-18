@@ -94,7 +94,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSuspendAfterMinutesChanged(int value) => _suspender.SuspendAfter = TimeSpan.FromMinutes(value);
 
-    public async Task OpenTabAsync(string url)
+    public async Task<BrowserTabViewModel> OpenTabAsync(string url)
     {
         var tab = new BrowserTabViewModel { Url = url };
         tab.PropertyChanged += (_, e) =>
@@ -104,6 +104,14 @@ public partial class MainViewModel : ObservableObject
         Tabs.Add(tab);
         await _host.OpenAsync(tab, url);
         SelectedTab = tab;
+        return tab;
+    }
+
+    /// <summary>Opens a magnet link or .torrent file (validated by the caller) in a new tab and starts streaming it.</summary>
+    public async Task OpenExternalAsync(string source)
+    {
+        var tab = await OpenTabAsync(UrlNormalizer.Home);
+        await _host.StreamAsync(tab, source);
     }
 
     [RelayCommand]
