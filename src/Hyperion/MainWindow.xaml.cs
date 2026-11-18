@@ -17,7 +17,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = _vm;
-        _osd.Owner = this;
         Drawer.DataContext = App.Services.GetRequiredService<MediaSettingsViewModel>();
         App.Services.GetRequiredService<GlobalSpeedEngine>().OsdRequested += osd => _osd.Show(osd.Text, Surface);
         _vm.PropertyChanged += (_, e) =>
@@ -27,6 +26,7 @@ public partial class MainWindow : Window
         };
         Loaded += async (_, _) =>
         {
+            _osd.Owner = this; // WPF only allows an owner that has already been shown
             await App.Services.GetRequiredService<TabHost>().InitializeAsync(Surface);
             await _vm.StartAsync();
             ((App)Application.Current).SetExternalHandler(_vm.OpenExternalAsync); // also opens a link we were launched with
