@@ -15,7 +15,7 @@ public sealed class TabHost(
     VideoInjectionService video,
     TabSuspenderService suspender,
     DownloadManager downloads,
-    TorrentStreamer? torrent = null)
+    Func<TorrentStreamer>? torrentFactory = null) : IAsyncDisposable
 {
     sealed class Entry(WebView2 view, BrowserTabViewModel tab, Action undo)
     {
@@ -25,6 +25,9 @@ public sealed class TabHost(
     }
 
     readonly Dictionary<Guid, Entry> _tabs = [];
+    readonly SemaphoreSlim _streamLock = new(1, 1);
+    TorrentStreamer? _stream;
+    CancellationTokenSource? _startCts;
     Grid? _surface;
     CoreWebView2Environment? _env;
     bool _wired;
@@ -156,22 +159,67 @@ public sealed class TabHost(
         }
     }
 
+    /// <summary>Each magnet gets a fresh streamer; the previous stream is disposed and a still-starting older magnet is cancelled.</summary>
     async Task StreamMagnetAsync(CoreWebView2 core, string magnet)
     {
-        if (torrent is null)
+        if (torrentFactory is null)
         {
-            Notifier.Show("Torrent streaming unavailable", "No libtorrent engine is installed in this build.");
+            Notifier.Show("Torrent streaming unavailable", "No torrent engine is installed in this build.");
             return;
         }
+
+        var cts = new CancellationTokenSource();
+        Interlocked.Exchange(ref _startCts, cts)?.Cancel(); // supersede a magnet that is still fetching metadata
+        cts.CancelAfter(TimeSpan.FromMinutes(2));
+
+        await _streamLock.WaitAsync();
         try
         {
-            var stream = await torrent.StartAsync(magnet, CancellationToken.None);
-            core.Navigate(stream.ToString());
+            if (_stream is { } old)
+            {
+                _stream = null;
+                await old.DisposeAsync();
+            }
+
+            var next = torrentFactory();
+            try
+            {
+                var url = await next.StartAsync(magnet, cts.Token);
+                _stream = next;
+                core.Navigate(url.ToString());
+            }
+            catch
+            {
+                await next.DisposeAsync();
+                throw;
+            }
+        }
+        catch (OperationCanceledException) when (!ReferenceEquals(Volatile.Read(ref _startCts), cts))
+        {
+            // superseded by a newer magnet link; nothing to report
+        }
+        catch (OperationCanceledException)
+        {
+            Notifier.Show("Torrent stream timed out", "No peers supplied the torrent's file list within 2 minutes.");
         }
         catch (Exception ex)
         {
             // Fire-and-forget from an event handler: report every failure (including native load errors) to the user.
             Notifier.Show("Torrent stream failed", ex.Message);
+        }
+        finally
+        {
+            _streamLock.Release();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Interlocked.Exchange(ref _startCts, null)?.Cancel();
+        if (_stream is { } s)
+        {
+            _stream = null;
+            await s.DisposeAsync();
         }
     }
 }

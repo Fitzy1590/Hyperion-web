@@ -33,7 +33,7 @@ public partial class App : Application
             .AddSingleton<TabSuspenderService>()
             .AddSingleton<DownloadManager>()
             .AddSingleton(sp => new UpdateChecker(sp.GetRequiredService<HttpClient>()))
-            .AddSingleton(_ => new TorrentStreamer(CreateTorrentEngine()))
+            .AddSingleton<Func<TorrentStreamer>>(_ => () => new TorrentStreamer(CreateTorrentEngine()))
             .AddSingleton<TabHost>()
             .AddSingleton<MainViewModel>()
             .AddSingleton<MediaSettingsViewModel>()
