@@ -61,7 +61,7 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 ### Phase 5 – Verify & ship
 - [x] `.github/workflows/build.yml` (windows-latest, .NET 9: restore, build, test)
 - [x] Structural check on Linux (XML well-formed, brackets balanced, XAML handlers/commands resolve)
-- [ ] First green CI run (never compiled yet; expect fixes)
+- [x] First green CI run: build + all xUnit tests pass on windows-latest (run 3, commit 565e646). Runtime behaviour of the WPF app is still untested.
 - [ ] <10MB-per-suspended-tab and download throughput measurements (need Windows)
 - [ ] Auto-updater (not requested in the latest instruction; deferred)
 - [ ] MSIX packaging (deferred)
