@@ -30,3 +30,32 @@ Conclusion: greenfield repository. Nothing is implemented.
 - [ ] **Option B**: Basic Browser View Only
 
 Phase 2 is unblocked. Awaiting Phase 2 instructions.
+
+## Phase Checklist (survives `/clear`; update after each step)
+
+### Phase 2 – Guardrails & environment
+- [x] `CLAUDE.md` (57 lines)
+- [ ] TokenEconomizer plugin: BLOCKED – `tokeneconomizer@tokeneconomizer` not found (only `anthropic-plugin-directory` is configured). Needs the marketplace source from the user.
+- [ ] `/tokeneconomizer:config set microskills=on`: blocked by the item above
+- [x] Model default `sonnet` in `.claude/settings.json` (effort `medium` must be set by the user with `/effort medium`)
+- [x] `.claude/rules/ui.md`
+- [x] `.claude/settings.json` build hook (`.claude/hooks/dotnet-build.sh`; no-op without `dotnet`/`.sln`)
+- [x] This tracker
+
+### Phase 3 – Core backend (not started)
+- [ ] DiagnosticBootstrap.cs
+- [ ] GlobalSpeedEngine.cs + VideoInjectionService.cs
+- [ ] TabSuspenderService.cs
+- [ ] DownloadManager.cs
+- [ ] TorrentStreamer.cs
+
+### Phase 4 – Frontend (not started)
+- [ ] MainWindow.xaml
+- [ ] Google sync + MV3 extensions
+- [ ] MediaSettingsOverlay.xaml
+- [ ] MediaOsdBadge.xaml
+
+### Phase 5 – Verify & ship (not started)
+- [ ] `dotnet build` clean (needs Windows/dotnet SDK)
+- [ ] Auto-updater
+- [ ] MSIX packaging
