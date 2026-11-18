@@ -27,6 +27,7 @@ public sealed class TabHost(
     readonly Dictionary<Guid, Entry> _tabs = [];
     readonly SemaphoreSlim _streamLock = new(1, 1);
     TorrentStreamer? _stream;
+    Guid? _streamTabId; // the tab that owns the stream (set when it starts, so a pending start is covered too)
     CancellationTokenSource? _startCts;
     Grid? _surface;
     CoreWebView2Environment? _env;
@@ -63,7 +64,7 @@ public sealed class TabHost(
         {
             if (!e.Uri.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase)) return;
             e.Cancel = true;
-            _ = StreamMagnetAsync(core, e.Uri);
+            _ = StreamMagnetAsync(tab, core, e.Uri);
         };
         EventHandler<CoreWebView2NavigationCompletedEventArgs> navDone = (_, e) =>
         {
@@ -140,6 +141,7 @@ public sealed class TabHost(
     public void Close(BrowserTabViewModel tab)
     {
         if (!_tabs.Remove(tab.Id, out var e)) return;
+        if (_streamTabId == tab.Id) _ = StopStreamAsync(); // closing the stream's tab disconnects the stream
         suspender.Unregister(tab.Id);
         e.Undo();
         _surface!.Children.Remove(e.View);
@@ -160,7 +162,7 @@ public sealed class TabHost(
     }
 
     /// <summary>Each magnet gets a fresh streamer; the previous stream is disposed and a still-starting older magnet is cancelled.</summary>
-    async Task StreamMagnetAsync(CoreWebView2 core, string magnet)
+    async Task StreamMagnetAsync(BrowserTabViewModel tab, CoreWebView2 core, string magnet)
     {
         if (torrentFactory is null)
         {
@@ -171,6 +173,7 @@ public sealed class TabHost(
         var cts = new CancellationTokenSource();
         Interlocked.Exchange(ref _startCts, cts)?.Cancel(); // supersede a magnet that is still fetching metadata
         cts.CancelAfter(TimeSpan.FromMinutes(2));
+        _streamTabId = tab.Id;
 
         await _streamLock.WaitAsync();
         try
@@ -186,7 +189,7 @@ public sealed class TabHost(
             {
                 var url = await next.StartAsync(magnet, cts.Token);
                 _stream = next;
-                core.Navigate(url.ToString());
+                if (_streamTabId == tab.Id) core.Navigate(url.ToString()); // skip if the tab was closed meanwhile
             }
             catch
             {
@@ -206,6 +209,30 @@ public sealed class TabHost(
         {
             // Fire-and-forget from an event handler: report every failure (including native load errors) to the user.
             Notifier.Show("Torrent stream failed", ex.Message);
+        }
+        finally
+        {
+            _streamLock.Release();
+        }
+    }
+
+    /// <summary>Abandons a pending start and disposes the stream: closes the HTTP server, peer connections and temp files.</summary>
+    async Task StopStreamAsync()
+    {
+        Interlocked.Exchange(ref _startCts, null)?.Cancel();
+        await _streamLock.WaitAsync();
+        try
+        {
+            _streamTabId = null;
+            if (_stream is { } s)
+            {
+                _stream = null;
+                await s.DisposeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifier.Show("Torrent stream cleanup failed", ex.Message);
         }
         finally
         {
