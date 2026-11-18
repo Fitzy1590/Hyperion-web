@@ -15,6 +15,11 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The WPF SDK's implicit usings omit these two -->
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Hyperion.Core\Hyperion.Core.csproj" />
   </ItemGroup>
 </Project>
