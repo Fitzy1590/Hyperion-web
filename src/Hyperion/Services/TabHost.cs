@@ -27,6 +27,7 @@ public sealed class TabHost(
     readonly Dictionary<Guid, Entry> _tabs = [];
     readonly SemaphoreSlim _streamLock = new(1, 1);
     TorrentStreamer? _stream;
+    string? _streamAuthority; // host:port of the page the stream owner tab should stay on: the magnet page while starting, the stream once serving
     Guid? _streamTabId; // the tab that owns the stream (set when it starts, so a pending start is covered too)
     CancellationTokenSource? _startCts;
     Grid? _surface;
@@ -62,9 +63,15 @@ public sealed class TabHost(
         EventHandler<object> favicon = (_, _) => tab.FaviconUri = core.FaviconUri;
         EventHandler<CoreWebView2NavigationStartingEventArgs> navStarting = (_, e) =>
         {
-            if (!e.Uri.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase)) return;
-            e.Cancel = true;
-            _ = StreamMagnetAsync(tab, core, e.Uri);
+            if (e.Uri.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
+            {
+                e.Cancel = true;
+                _ = StreamMagnetAsync(tab, core, e.Uri);
+            }
+            else if (_streamTabId == tab.Id && !IsStreamPage(e.Uri))
+            {
+                _ = StopStreamAsync(); // the stream's tab is leaving the stream page
+            }
         };
         EventHandler<CoreWebView2NavigationCompletedEventArgs> navDone = (_, e) =>
         {
@@ -174,6 +181,7 @@ public sealed class TabHost(
         Interlocked.Exchange(ref _startCts, cts)?.Cancel(); // supersede a magnet that is still fetching metadata
         cts.CancelAfter(TimeSpan.FromMinutes(2));
         _streamTabId = tab.Id;
+        _streamAuthority = Uri.TryCreate(core.Source, UriKind.Absolute, out var page) ? page.Authority : null;
 
         await _streamLock.WaitAsync();
         try
@@ -189,6 +197,7 @@ public sealed class TabHost(
             {
                 var url = await next.StartAsync(magnet, cts.Token);
                 _stream = next;
+                _streamAuthority = url.Authority;
                 if (_streamTabId == tab.Id) core.Navigate(url.ToString()); // skip if the tab was closed meanwhile
             }
             catch
@@ -216,6 +225,9 @@ public sealed class TabHost(
         }
     }
 
+    bool IsStreamPage(string url) =>
+        _streamAuthority is not null && Uri.TryCreate(url, UriKind.Absolute, out var target) && target.Authority == _streamAuthority;
+
     /// <summary>Abandons a pending start and disposes the stream: closes the HTTP server, peer connections and temp files.</summary>
     async Task StopStreamAsync()
     {
@@ -224,6 +236,7 @@ public sealed class TabHost(
         try
         {
             _streamTabId = null;
+            _streamAuthority = null;
             if (_stream is { } s)
             {
                 _stream = null;
