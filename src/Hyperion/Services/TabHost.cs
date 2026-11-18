@@ -80,7 +80,8 @@ public sealed class TabHost(
         EventHandler<CoreWebView2DownloadStartingEventArgs> download = (_, e) =>
         {
             // Hand the download to the parallel engine. Cookies/auth headers of the page are not forwarded (known limitation).
-            var uri = new Uri(e.DownloadOperation.Uri);
+            if (!Uri.TryCreate(e.DownloadOperation.Uri, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+                return; // data:, blob: and file: downloads cannot be fetched with HttpClient; WebView2 handles them itself
             var path = e.ResultFilePath;
             e.Cancel = true;
             _ = RunDownloadAsync(uri, path);
@@ -162,8 +163,9 @@ public sealed class TabHost(
             var file = await downloads.DownloadAsync(uri, path);
             Notifier.Show("Download complete", Path.GetFileName(file));
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
+        catch (Exception ex)
         {
+            // Fire-and-forget from an event handler: any failure must reach the user instead of going unobserved.
             Notifier.Show("Download failed", $"{Path.GetFileName(path)}: {ex.Message}");
         }
     }
