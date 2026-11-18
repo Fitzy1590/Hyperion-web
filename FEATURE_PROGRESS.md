@@ -62,6 +62,7 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 - [x] `.github/workflows/build.yml` (windows-latest, .NET 9: restore, build, test)
 - [x] Structural check on Linux (XML well-formed, brackets balanced, XAML handlers/commands resolve)
 - [x] First green CI run: build + all xUnit tests pass on windows-latest (run 3, commit 565e646). Runtime behaviour of the WPF app is still untested.
+- [x] CI green on a9348fd: build + tests (build #5) and unsigned-for-release MSIX build (msix #1, ~73 MB artifact `hyperion-msix`, self-signed test cert). The MSIX has not been installed or launched.
 - [ ] <10MB-per-suspended-tab and download throughput measurements (need Windows)
 - [ ] Auto-updater (not requested in the latest instruction; deferred)
 - [x] MSIX packaging: `packaging/` (manifest, placeholder logos, `build-msix.ps1`) + `.github/workflows/msix.yml` (self-signed test cert, sideload only). Needs: real logos, real publisher/cert for distribution, magnet:/.torrent activation handlers (not implemented)
