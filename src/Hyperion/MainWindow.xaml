@@ -3,6 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:Hyperion.Views"
         Title="Hyperion" Width="1280" Height="800">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -70,6 +73,11 @@
         <DockPanel Grid.Row="3" Margin="12,4">
             <Button DockPanel.Dock="Right" Content="＋ New tab" Padding="10,2" Command="{Binding NewTabCommand}"
                     AutomationProperties.Name="New tab" />
+            <Button DockPanel.Dock="Right" Content="Update" Margin="0,0,8,0" Padding="10,2"
+                    Command="{Binding InstallUpdateCommand}"
+                    Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVis}}"
+                    AutomationProperties.Name="Install update" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding UpdateText}" Margin="0,0,8,0" VerticalAlignment="Center" />
             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" />
         </DockPanel>
     </Grid>

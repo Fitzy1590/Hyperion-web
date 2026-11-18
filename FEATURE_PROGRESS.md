@@ -64,5 +64,5 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 - [x] First green CI run: build + all xUnit tests pass on windows-latest (run 3, commit 565e646). Runtime behaviour of the WPF app is still untested.
 - [x] CI green on a9348fd: build + tests (build #5) and unsigned-for-release MSIX build (msix #1, ~73 MB artifact `hyperion-msix`, self-signed test cert). The MSIX has not been installed or launched.
 - [ ] <10MB-per-suspended-tab and download throughput measurements (need Windows)
-- [ ] Auto-updater (not requested in the latest instruction; deferred)
+- [x] Auto-updater: `Core/Updates/UpdateChecker` (GitHub Releases API, requires `*.msix` + `*.msix.sha256` under this repo's release URLs, SHA-256 verified) + status-bar "Update" button; installs via Windows App Installer. Release flow: push a `v1.2.3` tag -> msix.yml builds, signs, attaches assets. Needs repo secrets `SIGNING_PFX_BASE64`, `SIGNING_PFX_PASSWORD`, `SIGNING_PUBLISHER` for upgrades to work (else a throwaway cert is used and updates won't install over the old version). UNTESTED end to end.
 - [x] MSIX packaging: `packaging/` (manifest, placeholder logos, `build-msix.ps1`) + `.github/workflows/msix.yml` (self-signed test cert, sideload only). Needs: real logos, real publisher/cert for distribution, magnet:/.torrent activation handlers (not implemented)

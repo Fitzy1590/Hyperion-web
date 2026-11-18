@@ -10,27 +10,73 @@ on:
 jobs:
   package:
     runs-on: windows-latest
+    permissions:
+      contents: write # needed to attach assets to a release on tag pushes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-      - name: Create test signing certificate (sideload testing only)
+      - name: Compute version
+        id: ver
         shell: pwsh
         run: |
-          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Hyperion Dev" -KeyUsage DigitalSignature `
-            -FriendlyName "Hyperion dev" -CertStoreLocation "Cert:\CurrentUser\My" `
-            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
-          $pwd = ConvertTo-SecureString -String "hyperion-dev" -Force -AsPlainText
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $v = $env:GITHUB_REF_NAME.TrimStart('v')
+            if ($v.Split('.').Count -eq 3) { $v = "$v.0" }
+          } else { $v = "1.0.${{ github.run_number }}.0" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+      - name: Prepare signing certificate
+        id: cert
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
+          SIGNING_PUBLISHER: ${{ secrets.SIGNING_PUBLISHER }}
+        run: |
           New-Item -ItemType Directory -Force artifacts | Out-Null
-          Export-PfxCertificate -Cert $cert -FilePath artifacts/hyperion-dev.pfx -Password $pwd | Out-Null
-          Export-Certificate -Cert $cert -FilePath artifacts/hyperion-dev.cer | Out-Null
+          if ($env:SIGNING_PFX_BASE64) {
+            # Persistent certificate: required for upgrades, because Windows only updates a package signed by a trusted key
+            # with the same publisher. SIGNING_PUBLISHER must equal the certificate subject.
+            [IO.File]::WriteAllBytes("artifacts/signing.pfx", [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+            $pwd = $env:SIGNING_PFX_PASSWORD
+            $publisher = $env:SIGNING_PUBLISHER
+          } else {
+            # Throwaway test certificate: sideload testing only; every run gets a different key.
+            $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Hyperion Dev" -KeyUsage DigitalSignature `
+              -FriendlyName "Hyperion dev" -CertStoreLocation "Cert:\CurrentUser\My" `
+              -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+            $pwd = [guid]::NewGuid().ToString("N")
+            Export-PfxCertificate -Cert $cert -FilePath artifacts/signing.pfx -Password (ConvertTo-SecureString $pwd -Force -AsPlainText) | Out-Null
+            Export-Certificate -Cert $cert -FilePath artifacts/hyperion-dev.cer | Out-Null
+            $publisher = "CN=Hyperion Dev"
+          }
+          echo "::add-mask::$pwd"
+          "pwd=$pwd" >> $env:GITHUB_ENV
+          "publisher=$publisher" >> $env:GITHUB_ENV
       - name: Build MSIX
         shell: pwsh
-        run: ./packaging/build-msix.ps1 -Version "1.0.${{ github.run_number }}.0" -Publisher "CN=Hyperion Dev" -PfxPath artifacts/hyperion-dev.pfx -PfxPassword hyperion-dev
+        run: ./packaging/build-msix.ps1 -Version "${{ steps.ver.outputs.version }}" -Publisher "$env:publisher" -PfxPath artifacts/signing.pfx -PfxPassword "$env:pwd"
+      - name: Checksum
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/*.msix | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$h  $($_.Name)" | Set-Content "$($_.FullName).sha256" -NoNewline
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: hyperion-msix
           path: |
             artifacts/*.msix
+            artifacts/*.msix.sha256
+            artifacts/hyperion-dev.cer
+          if-no-files-found: warn
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.msix
+            artifacts/*.msix.sha256
             artifacts/hyperion-dev.cer

@@ -18,7 +18,7 @@ $msix = Join-Path $root "$Output/Hyperion_$Version`_x64.msix"
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $stage | Out-Null
 
-dotnet publish "$root/src/Hyperion/Hyperion.csproj" -c Release -r win-x64 --self-contained true -o $stage
+dotnet publish "$root/src/Hyperion/Hyperion.csproj" -c Release -r win-x64 --self-contained true -p:Version=$Version -o $stage
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 Copy-Item "$PSScriptRoot/Assets" "$stage/Assets" -Recurse -Force
