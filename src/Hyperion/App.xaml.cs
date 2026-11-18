@@ -21,9 +21,47 @@ public partial class App : Application
     readonly Queue<string> _pending = new(); // links that arrived before the main window was ready
     Func<string, Task>? _openExternal;
 
+    public App()
+    {
+        // Packaged apps die silently on unhandled errors: show the error and keep a log.
+        DispatcherUnhandledException += (_, e) => { ReportCrash(e.Exception); e.Handled = true; };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => ReportCrash(e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString()));
+        TaskScheduler.UnobservedTaskException += (_, e) => { ReportCrash(e.Exception); e.SetObserved(); };
+    }
+
+    /// <summary>Shows the exception and appends it to %LocalAppData%\Hyperion\crash.log (redirected into the package's LocalCache when installed as MSIX).</summary>
+    static void ReportCrash(Exception ex)
+    {
+        var text = ex.ToString();
+        try
+        {
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Hyperion");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "crash.log"), $"{DateTime.Now:O}{Environment.NewLine}{text}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch (Exception logEx) when (logEx is IOException or UnauthorizedAccessException)
+        {
+            // the dialog below is still shown
+        }
+        MessageBox.Show(text, "Hyperion hit an error", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        try
+        {
+            await StartAsync(e);
+        }
+        catch (Exception ex)
+        {
+            ReportCrash(ex);
+            Shutdown();
+        }
+    }
+
+    async Task StartAsync(StartupEventArgs e)
+    {
         ShutdownMode = ShutdownMode.OnExplicitShutdown; // the diagnostic window may close before the main one opens
 
         // Windows starts a new process per magnet:/.torrent activation: hand it to the running instance instead.
