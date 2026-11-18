@@ -6,6 +6,7 @@
     <UseWPF>true</UseWPF>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
+    <PlatformTarget>x64</PlatformTarget>
     <!-- .NET 9 Fluent theme (ThemeMode) is flagged experimental -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
   </PropertyGroup>
@@ -13,6 +14,8 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="CommunityToolkit.WinUI.Notifications" Version="7.1.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <!-- libtorrent-rasterbar bindings: x64-only mixed-mode C++/CLI wrapper, unmaintained since 2020 -->
+    <PackageReference Include="libtorrent-net" Version="6.0.2" />
   </ItemGroup>
   <ItemGroup>
     <!-- The WPF SDK's implicit usings omit these two -->

@@ -267,3 +267,27 @@ public class DownloadManagerTests
         public void Dispose() => _l.Close();
     }
 }
+
+public class TorrentHeuristicsTests
+{
+    [Fact]
+    public void PicksLargestVideoOverLargerNonVideo()
+    {
+        var files = new[] { ("sample.txt", 10L), ("movie.MKV", 900L), ("extras.zip", 5000L), ("trailer.mp4", 100L) };
+        Assert.Equal(1, TorrentHeuristics.PickVideoFile(files));
+    }
+
+    [Fact]
+    public void FallsBackToLargestFileWhenNoVideo() =>
+        Assert.Equal(1, TorrentHeuristics.PickVideoFile(new[] { ("a.bin", 1L), ("b.bin", 2L) }));
+
+    [Fact]
+    public void EmptyTorrentHasNoFile() => Assert.Equal(-1, TorrentHeuristics.PickVideoFile(Array.Empty<(string, long)>()));
+
+    [Theory]
+    [InlineData(100, 1000, 30, 70)]
+    [InlineData(20, 1000, 30, 0)]
+    [InlineData(1000, 1000, 30, 1000)]
+    public void ReadableBytesHoldsBackMarginUntilComplete(long done, long length, long margin, long expected) =>
+        Assert.Equal(expected, TorrentHeuristics.ReadableBytes(done, length, margin));
+}

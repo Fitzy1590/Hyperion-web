@@ -1,0 +1,36 @@
+name: msix
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    paths: ["packaging/**", ".github/workflows/msix.yml", "src/**"]
+    branches: ["claude/**"]
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Create test signing certificate (sideload testing only)
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Hyperion Dev" -KeyUsage DigitalSignature `
+            -FriendlyName "Hyperion dev" -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          $pwd = ConvertTo-SecureString -String "hyperion-dev" -Force -AsPlainText
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Export-PfxCertificate -Cert $cert -FilePath artifacts/hyperion-dev.pfx -Password $pwd | Out-Null
+          Export-Certificate -Cert $cert -FilePath artifacts/hyperion-dev.cer | Out-Null
+      - name: Build MSIX
+        shell: pwsh
+        run: ./packaging/build-msix.ps1 -Version "1.0.${{ github.run_number }}.0" -Publisher "CN=Hyperion Dev" -PfxPath artifacts/hyperion-dev.pfx -PfxPassword hyperion-dev
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hyperion-msix
+          path: |
+            artifacts/*.msix
+            artifacts/hyperion-dev.cer

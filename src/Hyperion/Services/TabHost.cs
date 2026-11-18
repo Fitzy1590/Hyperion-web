@@ -168,8 +168,9 @@ public sealed class TabHost(
             var stream = await torrent.StartAsync(magnet, CancellationToken.None);
             core.Navigate(stream.ToString());
         }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or OperationCanceledException)
+        catch (Exception ex)
         {
+            // Fire-and-forget from an event handler: report every failure (including native load errors) to the user.
             Notifier.Show("Torrent stream failed", ex.Message);
         }
     }

@@ -48,7 +48,7 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 - [x] TabSuspenderService.cs
 - [x] DownloadManager.cs (16-32 range segments, resume, global throttle)
 - [x] TorrentStreamer.cs + StreamRingBuffer.cs (250 MB ring, loopback Range server)
-- [ ] `ITorrentEngine` implementation over libtorrent-rasterbar (binding not chosen/verified; magnet links show "unavailable")
+- [x] `LibtorrentEngine` (libtorrent-net 6.0.2: unmaintained 2020 x64 C++/CLI wrapper, libtorrent 1.2, no piece-level API). Sequential download of the largest video file, reads from the partial file with a 16 MB safety margin. UNTESTED at runtime. Limits: forward seeks wait for download (MP4 with moov at end will stall); one stream per run
 - [ ] HLS: server is progressive Range only; HLS needs ffmpeg remux
 
 ### Phase 4 – Frontend (scaffolded, WPF; NOT compiled)
@@ -64,4 +64,4 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 - [x] First green CI run: build + all xUnit tests pass on windows-latest (run 3, commit 565e646). Runtime behaviour of the WPF app is still untested.
 - [ ] <10MB-per-suspended-tab and download throughput measurements (need Windows)
 - [ ] Auto-updater (not requested in the latest instruction; deferred)
-- [ ] MSIX packaging (deferred)
+- [x] MSIX packaging: `packaging/` (manifest, placeholder logos, `build-msix.ps1`) + `.github/workflows/msix.yml` (self-signed test cert, sideload only). Needs: real logos, real publisher/cert for distribution, magnet:/.torrent activation handlers (not implemented)

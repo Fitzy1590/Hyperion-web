@@ -4,6 +4,7 @@ using Hyperion.Core.Diagnostics;
 using Hyperion.Core.Downloads;
 using Hyperion.Core.Media;
 using Hyperion.Core.Tabs;
+using Hyperion.Core.Torrent;
 using Hyperion.Services;
 using Hyperion.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,7 @@ public partial class App : Application
             .AddSingleton<VideoInjectionService>()
             .AddSingleton<TabSuspenderService>()
             .AddSingleton<DownloadManager>()
+            .AddSingleton(_ => new TorrentStreamer(new LibtorrentEngine()))
             .AddSingleton<TabHost>()
             .AddSingleton<MainViewModel>()
             .AddSingleton<MediaSettingsViewModel>()
@@ -54,7 +56,7 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnMainWindowClose;
         var main = new MainWindow();
         MainWindow = main;
-        main.Closed += (_, _) => (Services as IDisposable)?.Dispose();
+        main.Closed += async (_, _) => await ((IAsyncDisposable)Services).DisposeAsync(); // singletons include IAsyncDisposable
         main.Show();
     }
 }
