@@ -3,6 +3,7 @@ using System.Windows.Input;
 using Hyperion.Core.Media;
 using Hyperion.Services;
 using Hyperion.ViewModels;
+using Hyperion.Views;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Hyperion;
@@ -10,13 +11,15 @@ namespace Hyperion;
 public partial class MainWindow : Window
 {
     readonly MainViewModel _vm = App.Services.GetRequiredService<MainViewModel>();
+    readonly MediaOsdBadge _osd = new();
 
     public MainWindow()
     {
         InitializeComponent();
         DataContext = _vm;
+        _osd.Owner = this;
         Drawer.DataContext = App.Services.GetRequiredService<MediaSettingsViewModel>();
-        App.Services.GetRequiredService<GlobalSpeedEngine>().OsdRequested += osd => Osd.Show(osd.Text);
+        App.Services.GetRequiredService<GlobalSpeedEngine>().OsdRequested += osd => _osd.Show(osd.Text, Surface);
         _vm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsSettingsOpen))

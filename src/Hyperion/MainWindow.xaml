@@ -56,12 +56,14 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!-- Web surface + overlays (WebView2CompositionControl lets these render above the page) -->
+        <!-- Web surface + settings drawer (in layout: the HWND-based WebView2 would hide overlays) -->
         <Grid Grid.Row="2">
-            <Grid x:Name="Surface" />
-            <views:MediaOsdBadge x:Name="Osd" />
-            <views:MediaSettingsOverlay x:Name="Drawer" Width="380" HorizontalAlignment="Right"
-                                        Visibility="Collapsed" />
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid x:Name="Surface" Grid.Column="0" />
+            <views:MediaSettingsOverlay x:Name="Drawer" Grid.Column="1" Width="380" Visibility="Collapsed" />
         </Grid>
 
         <!-- Status -->

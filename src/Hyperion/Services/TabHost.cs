@@ -17,9 +17,9 @@ public sealed class TabHost(
     DownloadManager downloads,
     TorrentStreamer? torrent = null)
 {
-    sealed class Entry(WebView2CompositionControl view, BrowserTabViewModel tab, Action undo)
+    sealed class Entry(WebView2 view, BrowserTabViewModel tab, Action undo)
     {
-        public WebView2CompositionControl View { get; } = view;
+        public WebView2 View { get; } = view;
         public BrowserTabViewModel Tab { get; } = tab;
         public Action Undo { get; } = undo;
     }
@@ -48,7 +48,7 @@ public sealed class TabHost(
 
     public async Task OpenAsync(BrowserTabViewModel tab, string url)
     {
-        var view = new WebView2CompositionControl { Visibility = Visibility.Collapsed };
+        var view = new WebView2 { Visibility = Visibility.Collapsed };
         _surface!.Children.Add(view);
         await view.EnsureCoreWebView2Async(_env);
         var core = view.CoreWebView2;
