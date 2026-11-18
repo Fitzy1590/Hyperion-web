@@ -57,6 +57,8 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 - [x] Google env vars + MV3 flag (`BrowserEnvironmentFactory`); unverified that WebView2 honours Google sync; extensions = unpacked only
 - [x] MediaSettingsOverlay.xaml (remap, presets, seek slots)
 - [x] MediaOsdBadge.xaml
+- [x] UI enhancements (2026-11-18, NOT compiled/run: Linux session): compact chrome (24px controls, tab "+" moved into the tab strip, status line 11pt); vertical tabs toggle (☰) with collapse-to-icons (favicon + letter fallback); video "Full screen" and "Full window (borderless)" via toolbar menu or hotkeys (`Immersive` mode hides chrome + title bar; Esc exits); page shortcuts rewritten as a rule list (enable, Speed +/=, Fast forward hold, Seek s, Full screen, Full window; per-row key capture, add/remove) with the requested defaults. Old fixed presets/seek slots in `media-settings.json` are ignored (defaults used).
+  - Known gaps: no drag-reorder / per-row "⋮" menu; tab layout not persisted across launches; toolbar full window/screen only drives a top-frame video (hotkeys also work in iframes); controls are 24px, below the 32px hit-target rule by request.
 - [ ] Icon/branding assets
 
 ### Phase 5 – Verify & ship

@@ -47,22 +47,44 @@ public class GlobalSpeedEngineTests
     [Fact]
     public void DefaultsMatchSpec()
     {
-        var s = new MediaSettings();
-        Assert.Equal(0.1, s.SpeedStep);
-        Assert.Equal(new double[] { 1, 2, 3, 4, 5 }, s.Presets);
-        Assert.Equal(new[] { 2, 5, 10, 30, 60 }, s.SeekSeconds);
-        Assert.Equal("BracketRight", s.Bindings[MediaSettings.SpeedUp]);
-        Assert.Equal("BracketLeft", s.Bindings[MediaSettings.SpeedDown]);
-        Assert.Equal("Digit3", s.Bindings["preset.3"]);
+        var rules = new MediaSettings().Shortcuts;
+        Assert.Contains(new ShortcutRule(true, ShortcutAction.Speed, MediaSettings.Set, "Digit4", 1.7), rules);
+        Assert.Contains(new ShortcutRule(true, ShortcutAction.Seek, MediaSettings.Add, "KeyQ", -5), rules);
+        Assert.Contains(new ShortcutRule(true, ShortcutAction.Seek, MediaSettings.Add, "KeyZ", -60), rules);
+        Assert.Contains(new ShortcutRule(false, ShortcutAction.FastForward, MediaSettings.Set, "KeyG", 3), rules);
+        Assert.Equal(rules.Length, rules.Select(r => r.Key).Distinct().Count()); // no default shortcut shadows another
     }
 
     [Fact]
-    public void ConfigMapsComboToAction()
+    public void ConfigListsOnlyEnabledRulesWithKeys()
     {
-        var json = new GlobalSpeedEngine(new MediaSettings()).BuildConfigJson();
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
-        Assert.Equal("speed.up", doc.RootElement.GetProperty("keys").GetProperty("BracketRight").GetString());
-        Assert.Equal(60, doc.RootElement.GetProperty("seeks")[4].GetInt32());
+        var settings = new MediaSettings
+        {
+            Shortcuts =
+            [
+                new(true, ShortcutAction.Speed, MediaSettings.Add, "KeyW", 0.1),
+                new(false, ShortcutAction.Seek, MediaSettings.Add, "KeyE", 5),
+                new(true, ShortcutAction.Seek, MediaSettings.Add, "", 5),
+            ],
+        };
+        using var doc = System.Text.Json.JsonDocument.Parse(new GlobalSpeedEngine(settings).BuildConfigJson());
+        var rules = doc.RootElement.GetProperty("rules");
+        Assert.Equal(1, rules.GetArrayLength());
+        Assert.Equal("KeyW", rules[0].GetProperty("key").GetString());
+        Assert.Equal("speed", rules[0].GetProperty("action").GetString());
+        Assert.Equal(0.1, rules[0].GetProperty("value").GetDouble());
+    }
+
+    [Theory]
+    [InlineData("""{"type":"fullwindow","value":1}""", true)]
+    [InlineData("""{"type":"fullwindow","value":0}""", false)]
+    public void HandleRaisesFullWindowChanged(string json, bool expected)
+    {
+        var engine = new GlobalSpeedEngine(new MediaSettings());
+        bool? on = null;
+        engine.FullWindowChanged += v => on = v;
+        engine.Handle(json);
+        Assert.Equal(expected, on);
     }
 
     [Theory]
@@ -87,8 +109,9 @@ public class GlobalSpeedEngineTests
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
         try
         {
-            new MediaSettings { SpeedStep = 0.25 }.Save(path);
-            Assert.Equal(0.25, MediaSettings.Load(path).SpeedStep);
+            var rule = new ShortcutRule(true, ShortcutAction.Seek, MediaSettings.Add, "KeyJ", 7);
+            new MediaSettings { Shortcuts = [rule] }.Save(path);
+            Assert.Equal(new[] { rule }, MediaSettings.Load(path).Shortcuts);
         }
         finally { File.Delete(path); }
     }

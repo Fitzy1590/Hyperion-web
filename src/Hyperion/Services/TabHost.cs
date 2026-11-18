@@ -36,6 +36,8 @@ public sealed class TabHost(
 
     public event Action? SuspensionChanged;
     public event Action<string>? NewTabRequested;
+    public event Action<bool>? FullScreenChanged; // page asked for (or left) element fullscreen, e.g. a player's own button
+    public event Action<BrowserTabViewModel>? PageNavigating; // a real (cross-document) navigation started in this tab
 
     public async Task InitializeAsync(Grid surface)
     {
@@ -68,11 +70,14 @@ public sealed class TabHost(
                 e.Cancel = true;
                 _ = StreamTorrentAsync(tab, core, e.Uri);
             }
-            else if (_streamTabId == tab.Id && !IsStreamPage(e.Uri))
+            else
             {
-                _ = StopStreamAsync(); // the stream's tab is leaving the stream page
+                if (_streamTabId == tab.Id && !IsStreamPage(e.Uri))
+                    _ = StopStreamAsync(); // the stream's tab is leaving the stream page
+                PageNavigating?.Invoke(tab);
             }
         };
+        EventHandler<object> fullScreen = (_, _) => FullScreenChanged?.Invoke(core.ContainsFullScreenElement);
         EventHandler<CoreWebView2NavigationCompletedEventArgs> navDone = (_, e) =>
         {
             if (!e.IsSuccess) tab.Title = $"Error: {e.WebErrorStatus}";
@@ -105,6 +110,7 @@ public sealed class TabHost(
         core.DownloadStarting += download;
         core.NewWindowRequested += newWindow;
         core.ProcessFailed += failed;
+        core.ContainsFullScreenElementChanged += fullScreen;
         await video.AttachAsync(core);
 
         _tabs[tab.Id] = new Entry(view, tab, () =>
@@ -117,6 +123,7 @@ public sealed class TabHost(
             core.DownloadStarting -= download;
             core.NewWindowRequested -= newWindow;
             core.ProcessFailed -= failed;
+            core.ContainsFullScreenElementChanged -= fullScreen;
             video.Detach(core);
         });
 
@@ -139,6 +146,17 @@ public sealed class TabHost(
             else if (e.View.Visibility == Visibility.Visible) suspender.Deactivate(id);
             e.View.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         }
+    }
+
+    /// <summary>Makes the tab's main-frame video fill the web surface. False when the page has no video.</summary>
+    public async Task<bool> EnterFullWindowAsync(BrowserTabViewModel tab) =>
+        _tabs.TryGetValue(tab.Id, out var e)
+        && await e.View.CoreWebView2.ExecuteScriptAsync("window.__hyperionMedia?.enterFullWindow() === true") == "true";
+
+    /// <summary>Undoes full window and element fullscreen in the tab.</summary>
+    public async Task ExitFullWindowAsync(BrowserTabViewModel tab)
+    {
+        if (_tabs.TryGetValue(tab.Id, out var e)) await e.View.CoreWebView2.ExecuteScriptAsync("window.__hyperionMedia?.exit()");
     }
 
     public void Navigate(BrowserTabViewModel tab, string url)

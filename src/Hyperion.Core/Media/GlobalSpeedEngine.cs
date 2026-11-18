@@ -14,6 +14,7 @@ public sealed class GlobalSpeedEngine(MediaSettings settings)
 
     public MediaSettings Settings { get; private set; } = settings;
     public event Action<MediaOsd>? OsdRequested;
+    public event Action<bool>? FullWindowChanged;
 
     public void Update(MediaSettings s)
     {
@@ -21,13 +22,13 @@ public sealed class GlobalSpeedEngine(MediaSettings settings)
         s.Save();
     }
 
-    /// <summary>JSON consumed by the injected script: step, presets, seek seconds and combo -> action map.</summary>
+    /// <summary>JSON consumed by the injected script: the enabled shortcut rules (the script maps key -> rule, last one wins).</summary>
     public string BuildConfigJson()
     {
-        var keys = new Dictionary<string, string>();
-        foreach (var (action, combo) in Settings.Bindings) keys[combo] = action; // last binding wins on conflicts
-        return JsonSerializer.Serialize(
-            new { step = Settings.SpeedStep, presets = Settings.Presets, seeks = Settings.SeekSeconds, keys }, Camel);
+        var rules = Settings.Shortcuts
+            .Where(r => r.Enabled && r.Key.Length > 0)
+            .Select(r => new { action = r.Action, mode = r.Mode, key = r.Key, value = r.Value });
+        return JsonSerializer.Serialize(new { rules }, Camel);
     }
 
     public static MediaMessage? Parse(string json)
@@ -52,6 +53,7 @@ public sealed class GlobalSpeedEngine(MediaSettings settings)
     {
         var m = Parse(json);
         if (m is { Type: "osd" } && FormatOsd(m) is { } text) OsdRequested?.Invoke(new MediaOsd(text));
+        if (m is { Type: "fullwindow" }) FullWindowChanged?.Invoke(m.Value > 0);
         return m;
     }
 

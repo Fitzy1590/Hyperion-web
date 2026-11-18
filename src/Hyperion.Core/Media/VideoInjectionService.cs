@@ -7,11 +7,10 @@ public sealed class VideoInjectionService(GlobalSpeedEngine engine)
 {
     const string ConfigPlaceholder = "__CONFIG__";
 
-    // Runs in the page's main world, in all frames. Hotkeys are matched on KeyboardEvent.code.
+    // Runs in the page's main world, in all frames. Shortcuts are matched on KeyboardEvent.code.
     const string Script = """
 (() => {
   if (window.__hyperionMedia) return;
-  window.__hyperionMedia = true;
   const cfg = __CONFIG__;
   const post = m => { try { window.chrome.webview.postMessage(m); } catch (_) {} };
 
@@ -52,25 +51,85 @@ public sealed class VideoInjectionService(GlobalSpeedEngine engine)
     post({ type: 'osd', kind: 'speed', value: v.playbackRate });
   };
 
+  const keys = {};
+  for (const r of cfg.rules) keys[r.key] = r; // last rule wins on a shared key
+
+  // Outermost ancestor that is still exactly the video's size: the site's player, so its controls survive fullscreen.
+  const playerOf = v => {
+    let el = v;
+    const r = v.getBoundingClientRect();
+    while (el.parentElement && el.parentElement !== document.body) {
+      const p = el.parentElement.getBoundingClientRect();
+      if (Math.abs(p.width - r.width) > 2 || Math.abs(p.height - r.height) > 2) break;
+      el = el.parentElement;
+    }
+    return el;
+  };
+  const fullProps = {
+    position: 'fixed', inset: '0', width: '100vw', height: '100vh', 'max-width': 'none', 'max-height': 'none',
+    margin: '0', 'z-index': '2147483647', background: '#000', 'object-fit': 'contain'
+  };
+  let full = null; // { el, style } while the borderless "full window" mode is on
+  const enterFullWindow = v => {
+    if (!v) return false;
+    if (full) return true;
+    full = { el: v, style: v.getAttribute('style') };
+    for (const [k, val] of Object.entries(fullProps)) v.style.setProperty(k, val, 'important');
+    post({ type: 'fullwindow', value: 1 });
+    return true;
+  };
+  const exitFullWindow = () => {
+    if (!full) return;
+    const { el, style } = full;
+    full = null;
+    if (style === null) el.removeAttribute('style'); else el.setAttribute('style', style);
+    post({ type: 'fullwindow', value: 0 });
+  };
+  // Called by the host (toolbar) through ExecuteScriptAsync.
+  window.__hyperionMedia = {
+    enterFullWindow: () => enterFullWindow(pickVideo()),
+    exit: () => { exitFullWindow(); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
+  };
+
+  let held = null; // fast forward: { code, video, rate } while its key is down
+  const release = () => {
+    if (!held) return;
+    const { video, rate } = held;
+    held = null;
+    setRate(video, rate);
+  };
+
   window.addEventListener('keydown', e => {
+    if (e.code === 'Escape' && full) {
+      exitFullWindow();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     if (isTyping(deepActive())) return;
     const combo = (e.ctrlKey ? 'Ctrl+' : '') + (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : '') + (e.metaKey ? 'Meta+' : '') + e.code;
-    const action = cfg.keys[combo];
-    if (!action) return;
+    const r = keys[combo];
+    if (!r) return;
     const v = pickVideo();
     if (!v) return;
-    const [kind, a, b] = action.split('.');
-    if (action === 'speed.up') setRate(v, v.playbackRate + cfg.step);
-    else if (action === 'speed.down') setRate(v, v.playbackRate - cfg.step);
-    else if (kind === 'preset') setRate(v, cfg.presets[Number(a) - 1]);
-    else if (kind === 'seek') {
-      const s = cfg.seeks[Number(b) - 1] * (a === 'back' ? -1 : 1);
-      seek(v, s);
-      post({ type: 'osd', kind: 'seek', value: s });
-    } else return;
+    switch (r.action) {
+      case 'speed': setRate(v, r.mode === '=' ? r.value : v.playbackRate + r.value); break;
+      case 'seek': seek(v, r.value); post({ type: 'osd', kind: 'seek', value: r.value }); break;
+      case 'fastforward':
+        if (!held) { held = { code: e.code, video: v, rate: v.playbackRate }; setRate(v, r.value); }
+        break;
+      case 'fullscreen':
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        else playerOf(v).requestFullscreen().catch(() => {});
+        break;
+      case 'fullwindow': if (full) exitFullWindow(); else enterFullWindow(v); break;
+      default: return;
+    }
     e.preventDefault();
     e.stopImmediatePropagation();
   }, true);
+  window.addEventListener('keyup', e => { if (held && e.code === held.code) release(); }, true);
+  window.addEventListener('blur', release);
 
   const playing = on => () => post({ type: 'playing', value: on });
   document.addEventListener('play', playing(true), true);

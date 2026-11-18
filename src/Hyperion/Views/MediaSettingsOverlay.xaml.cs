@@ -13,7 +13,7 @@ public partial class MediaSettingsOverlay : UserControl
 
     void OnRemapClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: HotkeyRow row })
+        if (sender is FrameworkElement { DataContext: ShortcutRow row })
         {
             Vm?.BeginCaptureCommand.Execute(row);
             Focus();

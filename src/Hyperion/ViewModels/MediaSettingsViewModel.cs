@@ -5,19 +5,38 @@ using Hyperion.Core.Media;
 
 namespace Hyperion.ViewModels;
 
-public partial class ValueSlot : ObservableObject
+public partial class ShortcutRow : ObservableObject
 {
-    public ValueSlot(string label, double initial) { Label = label; value = initial; }
-    public string Label { get; }
-    [ObservableProperty] private double value;
-}
+    public ShortcutRow(ShortcutRule r)
+    {
+        Action = r.Action;
+        enabled = r.Enabled;
+        mode = r.Mode;
+        key = r.Key;
+        value = r.Value;
+    }
 
-public partial class HotkeyRow : ObservableObject
-{
-    public HotkeyRow(string action, string label, string initial) { Action = action; Label = label; combo = initial; }
     public string Action { get; }
-    public string Label { get; }
-    [ObservableProperty] private string combo;
+    [ObservableProperty] private bool enabled;
+    [ObservableProperty] private string mode;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(DisplayKey))] private string key;
+    [ObservableProperty] private double value;
+
+    public string DisplayKey => Key.Length == 0 ? "Set key" : Key;
+    public bool HasMode => Action == ShortcutAction.Speed;
+    public bool HasValue => Action is ShortcutAction.Speed or ShortcutAction.FastForward or ShortcutAction.Seek;
+
+    public string Label => Action switch
+    {
+        ShortcutAction.Speed => "Speed",
+        ShortcutAction.FastForward => "Fast forward (hold)",
+        ShortcutAction.Seek => "Seek (s)",
+        ShortcutAction.FullScreen => "Full screen",
+        ShortcutAction.FullWindow => "Full window",
+        _ => Action,
+    };
+
+    public ShortcutRule ToRule() => new(Enabled, Action, Mode, Key, Value);
 }
 
 public partial class MediaSettingsViewModel : ObservableObject
@@ -32,34 +51,41 @@ public partial class MediaSettingsViewModel : ObservableObject
         Load(engine.Settings);
     }
 
-    [ObservableProperty] private double speedStep;
-    [ObservableProperty] private HotkeyRow? capturing;
+    [ObservableProperty] private ShortcutRow? capturing;
     [ObservableProperty] private string statusText = "";
 
-    public ObservableCollection<ValueSlot> Presets { get; } = [];
-    public ObservableCollection<ValueSlot> SeekSeconds { get; } = [];
-    public ObservableCollection<HotkeyRow> Hotkeys { get; } = [];
+    public ObservableCollection<ShortcutRow> Shortcuts { get; } = [];
 
     void Load(MediaSettings s)
     {
-        SpeedStep = s.SpeedStep;
-        Presets.Clear();
-        SeekSeconds.Clear();
-        Hotkeys.Clear();
-        for (var i = 0; i < s.Presets.Length; i++) Presets.Add(new($"Preset {i + 1} (x)", s.Presets[i]));
-        for (var i = 0; i < s.SeekSeconds.Length; i++) SeekSeconds.Add(new($"Seek slot {i + 1} (s)", s.SeekSeconds[i]));
-
-        void Row(string action, string label) =>
-            Hotkeys.Add(new(action, label, s.Bindings.GetValueOrDefault(action, "")));
-        Row(MediaSettings.SpeedUp, "Speed up");
-        Row(MediaSettings.SpeedDown, "Speed down");
-        for (var i = 1; i <= s.Presets.Length; i++) Row(MediaSettings.Preset + i, $"Preset {i}");
-        for (var i = 1; i <= s.SeekSeconds.Length; i++) Row(MediaSettings.SeekForward + i, $"Seek forward, slot {i}");
-        for (var i = 1; i <= s.SeekSeconds.Length; i++) Row(MediaSettings.SeekBack + i, $"Seek back, slot {i}");
+        Shortcuts.Clear();
+        foreach (var r in s.Shortcuts) Shortcuts.Add(new(r));
     }
 
     [RelayCommand]
-    private void BeginCapture(HotkeyRow row)
+    private void Add(string action)
+    {
+        var (mode, value) = action switch
+        {
+            ShortcutAction.Speed => (MediaSettings.Add, 0.1),
+            ShortcutAction.FastForward => (MediaSettings.Set, 3),
+            ShortcutAction.Seek => (MediaSettings.Add, 10),
+            _ => (MediaSettings.Add, 0),
+        };
+        var row = new ShortcutRow(new(true, action, mode, "", value));
+        Shortcuts.Add(row);
+        BeginCapture(row);
+    }
+
+    [RelayCommand]
+    private void Remove(ShortcutRow row) => Shortcuts.Remove(row);
+
+    [RelayCommand]
+    private void ToggleMode(ShortcutRow row) =>
+        row.Mode = row.Mode == MediaSettings.Add ? MediaSettings.Set : MediaSettings.Add;
+
+    [RelayCommand]
+    private void BeginCapture(ShortcutRow row)
     {
         Capturing = row;
         StatusText = $"Press a key for “{row.Label}” (Esc cancels)";
@@ -71,7 +97,7 @@ public partial class MediaSettingsViewModel : ObservableObject
         if (Capturing is not { } row) return false;
         if (virtualKey == 0x1B) { Capturing = null; StatusText = ""; return true; }
         if (KeyCodeMap.FromVirtualKey(virtualKey) is not { } code) return true; // modifier alone or unsupported key
-        row.Combo = KeyCodeMap.Combo(ctrl, alt, shift, meta, code);
+        row.Key = KeyCodeMap.Combo(ctrl, alt, shift, meta, code);
         Capturing = null;
         StatusText = "";
         return true;
@@ -80,14 +106,7 @@ public partial class MediaSettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task SaveAsync()
     {
-        var s = new MediaSettings
-        {
-            SpeedStep = Math.Clamp(SpeedStep, 0.05, 1),
-            Presets = [.. Presets.Select(p => Math.Clamp(p.Value, 0.1, 16))],
-            SeekSeconds = [.. SeekSeconds.Select(p => (int)Math.Max(1, Math.Round(p.Value)))],
-            Bindings = Hotkeys.Where(h => h.Combo.Length > 0).ToDictionary(h => h.Action, h => h.Combo),
-        };
-        _engine.Update(s);
+        _engine.Update(new MediaSettings { Shortcuts = [.. Shortcuts.Select(r => r.ToRule())] });
         await _video.RefreshAsync();
         StatusText = "Saved. Reload open tabs to apply.";
     }
