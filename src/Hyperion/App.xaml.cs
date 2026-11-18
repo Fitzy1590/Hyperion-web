@@ -33,7 +33,7 @@ public partial class App : Application
             .AddSingleton<TabSuspenderService>()
             .AddSingleton<DownloadManager>()
             .AddSingleton(sp => new UpdateChecker(sp.GetRequiredService<HttpClient>()))
-            .AddSingleton(_ => new TorrentStreamer(new LibtorrentEngine()))
+            .AddSingleton(_ => new TorrentStreamer(CreateTorrentEngine()))
             .AddSingleton<TabHost>()
             .AddSingleton<MainViewModel>()
             .AddSingleton<MediaSettingsViewModel>()
@@ -52,6 +52,12 @@ public partial class App : Application
             ShowMain();
         }
     }
+
+    /// <summary>MonoTorrent by default (seek-aware streaming); set HYPERION_TORRENT_ENGINE=libtorrent for the libtorrent-net engine.</summary>
+    static ITorrentEngine CreateTorrentEngine() =>
+        string.Equals(Environment.GetEnvironmentVariable("HYPERION_TORRENT_ENGINE"), "libtorrent", StringComparison.OrdinalIgnoreCase)
+            ? new LibtorrentEngine()
+            : new MonoTorrentEngine();
 
     void ShowMain()
     {

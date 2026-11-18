@@ -49,6 +49,7 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 - [x] DownloadManager.cs (16-32 range segments, resume, global throttle)
 - [x] TorrentStreamer.cs + StreamRingBuffer.cs (250 MB ring, loopback Range server)
 - [x] `LibtorrentEngine` (libtorrent-net 6.0.2: unmaintained 2020 x64 C++/CLI wrapper, libtorrent 1.2, no piece-level API). Sequential download of the largest video file, reads from the partial file with a 16 MB safety margin. UNTESTED at runtime. Limits: forward seeks wait for download (MP4 with moov at end will stall); one stream per run
+- [x] `MonoTorrentEngine` (MonoTorrent 3.0.2, Core): seekable stream, first/last piece prebuffered, seeks re-prioritise pieces. Default engine; `HYPERION_TORRENT_ENGINE=libtorrent` selects the libtorrent-net engine. UNTESTED against real peers (no network test exists).
 - [ ] HLS: server is progressive Range only; HLS needs ffmpeg remux
 
 ### Phase 4 – Frontend (scaffolded, WPF; NOT compiled)
