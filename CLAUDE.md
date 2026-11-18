@@ -15,10 +15,11 @@ Windows desktop browser: C# .NET 9 + WebView2 (Chromium). See `SPEC.md` (scope) 
 4. **Read before touch**: audit the target file before any edit.
 
 ## Layout
-- `src/Hyperion/` app (shell, ViewModels, Services). One service per file, named for its class.
-- `src/Hyperion.Tests/` tests.
-- Planned services: `DiagnosticBootstrap`, `GlobalSpeedEngine`, `VideoInjectionService`,
-  `TabSuspenderService`, `DownloadManager`, `TorrentStreamer`.
+- `src/Hyperion.Core/` UI-free services (`net9.0-windows`, WebView2 Core only): `DiagnosticBootstrap`,
+  `GlobalSpeedEngine`, `VideoInjectionService`, `TabSuspenderService`, `DownloadManager`, `TorrentStreamer`.
+- `src/Hyperion/` WPF app (.NET 9 Fluent theme): shell, ViewModels, `Services/TabHost`.
+- `src/Hyperion.Tests/` xUnit tests for Core.
+- UI is WPF, not WinUI 3: WinUI's WebView2 exposes a WinRT `CoreWebView2` that clashes with Core's .NET type.
 
 ## C# / .NET 9 conventions
 - `net9.0-windows10.0.19041.0`, `Nullable` and `ImplicitUsings` enabled, warnings as errors in CI.

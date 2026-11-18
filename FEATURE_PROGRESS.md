@@ -42,20 +42,26 @@ Phases 2-5 instructions received; Phase 2 done except the plugin (see checklist)
 - [x] `.claude/settings.json` build hook (`.claude/hooks/dotnet-build.sh`; no-op without `dotnet`/`.sln`)
 - [x] This tracker
 
-### Phase 3 – Core backend (not started)
-- [ ] DiagnosticBootstrap.cs
-- [ ] GlobalSpeedEngine.cs + VideoInjectionService.cs
-- [ ] TabSuspenderService.cs
-- [ ] DownloadManager.cs
-- [ ] TorrentStreamer.cs
+### Phase 3 – Core backend (scaffolded 2026-11-18; NOT compiled, no .NET SDK in session)
+- [x] DiagnosticBootstrap.cs (WebView2, VC++, D3D11/12, Widevine file check; signed-installer auto-fix)
+- [x] GlobalSpeedEngine.cs + VideoInjectionService.cs + MediaSettings.cs + KeyCodeMap.cs
+- [x] TabSuspenderService.cs
+- [x] DownloadManager.cs (16-32 range segments, resume, global throttle)
+- [x] TorrentStreamer.cs + StreamRingBuffer.cs (250 MB ring, loopback Range server)
+- [ ] `ITorrentEngine` implementation over libtorrent-rasterbar (binding not chosen/verified; magnet links show "unavailable")
+- [ ] HLS: server is progressive Range only; HLS needs ffmpeg remux
 
-### Phase 4 – Frontend (not started)
-- [ ] MainWindow.xaml
-- [ ] Google sync + MV3 extensions
-- [ ] MediaSettingsOverlay.xaml
-- [ ] MediaOsdBadge.xaml
+### Phase 4 – Frontend (scaffolded, WPF; NOT compiled)
+- [x] MainWindow.xaml, TabHost, ViewModels (omni-bar, tab dock with 💤, RAM selector, status)
+- [x] Google env vars + MV3 flag (`BrowserEnvironmentFactory`); unverified that WebView2 honours Google sync; extensions = unpacked only
+- [x] MediaSettingsOverlay.xaml (remap, presets, seek slots)
+- [x] MediaOsdBadge.xaml
+- [ ] Icon/branding assets
 
-### Phase 5 – Verify & ship (not started)
-- [ ] `dotnet build` clean (needs Windows/dotnet SDK)
-- [ ] Auto-updater
-- [ ] MSIX packaging
+### Phase 5 – Verify & ship
+- [x] `.github/workflows/build.yml` (windows-latest, .NET 9: restore, build, test)
+- [x] Structural check on Linux (XML well-formed, brackets balanced, XAML handlers/commands resolve)
+- [ ] First green CI run (never compiled yet; expect fixes)
+- [ ] <10MB-per-suspended-tab and download throughput measurements (need Windows)
+- [ ] Auto-updater (not requested in the latest instruction; deferred)
+- [ ] MSIX packaging (deferred)
