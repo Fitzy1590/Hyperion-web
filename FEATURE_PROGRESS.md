@@ -24,9 +24,9 @@ Conclusion: greenfield repository. Nothing is implemented.
 | 4 | 16–32 thread parallel download manager | Not started |
 | 5 | Magnet/torrent sequential streamer (libtorrent) | Not started |
 
-## Phase 1 Vote (pending)
+## Phase 1 Vote (recorded 2026-11-18)
 
-- [ ] **Option A [RECOMMENDED]**: C# .NET 9 + WebView2 + Self-Diagnosing Bootstrap + Automatic Tab Suspender + Fast Download Manager + 1-Click Torrent Streamer
+- [x] **Option A [RECOMMENDED]**: C# .NET 9 + WebView2 + Self-Diagnosing Bootstrap + Automatic Tab Suspender + Fast Download Manager + 1-Click Torrent Streamer
 - [ ] **Option B**: Basic Browser View Only
 
-Phase 2 is blocked until a vote is recorded.
+Phase 2 is unblocked. Awaiting Phase 2 instructions.
